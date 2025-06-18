@@ -1,29 +1,78 @@
 package com.example.deliverytracker.model;
 
-import lombok.Data; // Si usas Lombok
-// import javax.persistence.Entity; // Si usas JPA
+// import javax.persistence.Entity;
 // import javax.persistence.Id;
 
-// @Entity // Si es una entidad JPA
-@Data // Genera getters, setters, toString, equals, hashCode con Lombok
+// @Entity
 public class LocationUpdate {
-    // @Id // Si es una entidad JPA y necesitas un ID
+    // @Id
     private String userId;
     private Role role;
     private double latitude;
     private double longitude;
-    private long timestamp; // O LocalDateTime, Instant, etc.
+    private String timestamp;
 
-    // Constructor, getters y setters si no usas Lombok
-    public LocationUpdate() {}
+    public LocationUpdate() {
+    }
 
-    public LocationUpdate(String userId, double latitude, double longitude, long timestamp) {
+    public LocationUpdate(String userId, double latitude, double longitude, String timestamp) {
         this.userId = userId;
         this.latitude = latitude;
         this.longitude = longitude;
         this.timestamp = timestamp;
     }
 
-    // Getters y Setters...
-    // @Override public String toString() { ... }
+    // Getters
+    public String getUserId() {
+        return userId;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public String getTimestamp() {
+        return timestamp;
+    }
+
+    // Setters
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+    }
+
+    public void setTimestamp(String timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    // Optional: toString
+    @Override
+    public String toString() {
+        return "LocationUpdate{" +
+                "userId='" + userId + '\'' +
+                ", role=" + role +
+                ", latitude=" + latitude +
+                ", longitude=" + longitude +
+                ", timestamp='" + timestamp + '\'' +
+                '}';
+    }
 }
