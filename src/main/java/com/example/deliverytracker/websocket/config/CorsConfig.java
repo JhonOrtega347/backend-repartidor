@@ -1,4 +1,4 @@
-package com.example.deliverytracker.config;
+package com.example.deliverytracker.websocket.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

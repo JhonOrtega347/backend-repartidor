@@ -1,4 +1,4 @@
-package com.example.deliverytracker.controller;
+package com.example.deliverytracker.websocket.controller;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,7 +11,7 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
-import com.example.deliverytracker.model.LocationUpdate; // Un POJO para tu objeto de ubicación
+import com.example.deliverytracker.websocket.model.LocationUpdate; // Un POJO para tu objeto de ubicación
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 

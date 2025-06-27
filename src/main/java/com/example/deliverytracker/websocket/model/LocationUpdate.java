@@ -1,4 +1,4 @@
-package com.example.deliverytracker.model;
+package com.example.deliverytracker.websocket.model;
 
 // import javax.persistence.Entity;
 // import javax.persistence.Id;
