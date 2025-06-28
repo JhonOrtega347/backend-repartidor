@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>Enviar Pedido STOMP</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+<h1>Enviar pedido a user_abc123</h1>
+<button onclick="enviarPedido()">📤 Enviar Pedido</button>
+
+<script>
+    const socket = new SockJS("http://10.100.241.219:8080/ws-location?userId=admin");
+    const client = Stomp.over(socket);
+
+    client.connect({}, function (frame) {
+        console.log("✅ Conectado:", frame);
+
+        client.subscribe("/user/user_abc123/pedidos", function (message) {
+            console.log("📦 Pedido recibido en el HTML:", message.body);
+        });
+
+        window.enviarPedido = function () {
+            const pedido = {
+                clienteId: "clienteHTML",
+                repartidorId: "user_abc123",
+                local: "Pizzería HTML",
+                latitudLocal: -12.042,
+                longitudLocal: -77.029,
+                destination: "Calle HTML 456",
+                latitudDestino: -12.048,
+                longitudDestino: -77.034,
+                price: 45.5,
+                descripcion: "Pizza grande HTML",
+                estado: "PENDIENTE",
+                fechaCreacion: new Date().toISOString()
+            };
+
+            client.send("/app/pedido.nuevo", {}, JSON.stringify(pedido));
+            console.log("📤 Pedido enviado");
+        };
+    }, function (error) {
+        console.error("❌ Error STOMP:", error);
+    });
+</script>
+</body>
+</html>
+

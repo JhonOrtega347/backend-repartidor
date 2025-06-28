@@ -7,6 +7,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Controller
 public class PedidoSocketController {
 
@@ -16,10 +19,12 @@ public class PedidoSocketController {
     @Autowired
     private PedidoService pedidoService;
 
+    private static final Logger logger = LoggerFactory.getLogger(PedidoSocketController.class);
+
     @MessageMapping("/pedido.aceptado")
     public void handlePedidoAceptado(@Payload AceptarPedidoRequest request) {
         Pedido pedido = pedidoService.asignarRepartidor(
-                request.getPedidoId(),
+                Long.parseLong(request.getPedidoId()),
                 request.getRepartidorId()
         );
 
@@ -32,14 +37,16 @@ public class PedidoSocketController {
 
     @MessageMapping("/pedido.rechazado")
     public void handlePedidoRechazado(@Payload RechazarPedidoRequest request) {
-        pedidoService.rechazarPedido(request.getPedidoId(), request.getRepartidorId());
+        pedidoService.rechazarPedido(Long.parseLong(request.getPedidoId()), request.getRepartidorId());
     }
 
     @MessageMapping("/pedido.nuevo")
-    public void notificarNuevoPedido(@Payload String pedidoId) {
-        pedidoService.findById(pedidoId).ifPresent(pedido -> {
-            PedidoDto dto = pedidoService.convertirADto(pedido);
-            messagingTemplate.convertAndSend("/topic/pedidos.nuevos", dto);
-        });
+    public void handleNuevoPedido(PedidoDto pedidoDto) {
+        // Enviar a repartidor específico
+        messagingTemplate.convertAndSendToUser(
+                pedidoDto.getRepartidorId(),
+                "/pedidos",
+                pedidoDto
+        );
     }
 }

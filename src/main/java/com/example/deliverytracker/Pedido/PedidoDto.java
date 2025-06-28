@@ -10,32 +10,39 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PedidoDto {
-    private String id;
     private String clienteId;
     private String repartidorId;
+
+    // Datos del local
+    private String local;
+    private double latitudLocal;
+    private double longitudLocal;
+
+    // Datos del destino
+    private String destination;
     private double latitudDestino;
     private double longitudDestino;
-    private String direccionDestino;
-    private String estado;
-    private String descripcion;
-    private double total;
-    private LocalDateTime fechaCreacion;
-    private double distanciaRepartidor; // Opcional: útil para calcular distancia en el frontend
 
-    // Método estático para conversión desde Entidad
+    private double price;
+    private String descripcion;
+    private String estado;
+    private LocalDateTime fechaCreacion;
+
+    // Método de conversión
     public static PedidoDto fromEntity(Pedido pedido) {
         return new PedidoDto(
-                pedido.getId(),
                 pedido.getClienteId(),
                 pedido.getRepartidorId(),
+                pedido.getLocal(),
+                pedido.getLatitudLocal(),
+                pedido.getLongitudLocal(),
+                pedido.getDestination(),
                 pedido.getLatitudDestino(),
                 pedido.getLongitudDestino(),
-                pedido.getDireccionDestino(),
-                pedido.getEstado(),
+                pedido.getPrice(),
                 pedido.getDescripcion(),
-                pedido.getTotal(),
-                pedido.getFechaCreacion(),
-                0.0 // Inicializar distancia (puede calcularse después)
+                pedido.getEstado(),
+                pedido.getFechaCreacion()
         );
     }
 }

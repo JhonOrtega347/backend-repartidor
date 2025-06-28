@@ -9,6 +9,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Repository
-public interface PedidoRepository extends JpaRepository<Pedido, String> {
+public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     List<Pedido> findByEstado(String estado);
 }

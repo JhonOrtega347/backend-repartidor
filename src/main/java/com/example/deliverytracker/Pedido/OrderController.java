@@ -19,6 +19,14 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<Pedido> crearPedido(@RequestBody Pedido pedido) {
+        // Asegura que los campos del local estén presentes
+        if (pedido.getLocal() == null || pedido.getLatitudLocal() == 0 || pedido.getLongitudLocal() == 0) {
+            // Puedes setear valores por defecto o lanzar excepción
+            pedido.setLocal("Restaurante Principal");
+            pedido.setLatitudLocal(-12.123); // Ejemplo
+            pedido.setLongitudLocal(-77.456); // Ejemplo
+        }
+
         Pedido nuevoPedido = pedidoService.crearPedido(pedido);
         return new ResponseEntity<>(nuevoPedido, HttpStatus.CREATED);
     }
@@ -29,9 +37,9 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PedidoDto> getPedido(@PathVariable String id) {
+    public ResponseEntity<PedidoDto> getPedido(@PathVariable Long id) {
         return pedidoService.findById(id)
-                .map(pedido -> ResponseEntity.ok(pedidoService.convertirADto(pedido)))
+                .map(pedido -> ResponseEntity.ok(pedidoService.convertirADto(pedido)))//'convertirADto(com.example.deliverytracker.Pedido.Pedido)' has private access in 'com.example.deliverytracker.Pedido.PedidoService'
                 .orElse(ResponseEntity.notFound().build());
     }
 }

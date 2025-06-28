@@ -1,10 +1,10 @@
 package com.example.deliverytracker.Pedido;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.GenericGenerator;
 
 import java.time.LocalDateTime;
 
@@ -14,14 +14,26 @@ import java.time.LocalDateTime;
 @Entity
 public class Pedido {
     @Id
-    private String id; // ID único del pedido (puede ser String o Long si es numérico)
-    private String clienteId; // ID del cliente que hizo el pedido
-    private String repartidorId; // ID del repartidor asignado (null al principio)
-    private double latitudDestino; // Latitud del cliente
-    private double longitudDestino; // Longitud del cliente
-    private String direccionDestino; // Dirección legible del cliente
-    private String estado; // Pendiente, Asignado, EnCamino, Entregado, Cancelado
-    private String descripcion; // Detalles del pedido (ej. "Pizza pepperoni + Coca Cola")
-    private double total; // Precio total del pedido
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    // Datos del cliente
+    private String clienteId;
+    private String repartidorId;
+
+    // Datos del local
+    private String local;              // Nombre del restaurante/local
+    private double latitudLocal;       // Latitud del local
+    private double longitudLocal;      // Longitud del local
+
+    // Datos del destino
+    private String destination;        // Dirección legible del cliente
+    private double latitudDestino;     // Latitud del cliente
+    private double longitudDestino;    // Longitud del cliente
+
+    // Detalles del pedido
+    private double price;              // Cambiado de 'total' a 'price'
+    private String descripcion;
+    private String estado;             // PENDIENTE, ACEPTADO, etc.
     private LocalDateTime fechaCreacion;
 }

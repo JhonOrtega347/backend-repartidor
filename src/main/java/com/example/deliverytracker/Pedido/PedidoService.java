@@ -22,11 +22,15 @@ public class PedidoService {
         pedido.setFechaCreacion(LocalDateTime.now());
         Pedido nuevoPedido = pedidoRepository.save(pedido);
 
-        messagingTemplate.convertAndSend("/topic/pedidos.nuevos", convertirADto(nuevoPedido));
+        PedidoDto dto = convertirADto(nuevoPedido);
+
+        // 👇 Envia directamente al repartidor específico
+        messagingTemplate.convertAndSendToUser(dto.getRepartidorId(), "/pedidos", dto);
+
         return nuevoPedido;
     }
 
-    public Optional<Pedido> findById(String id) {
+    public Optional<Pedido> findById(Long id) {
         return pedidoRepository.findById(id);
     }
 
@@ -34,7 +38,7 @@ public class PedidoService {
         return pedidoRepository.findByEstado("PENDIENTE");
     }
 
-    public Pedido asignarRepartidor(String pedidoId, String repartidorId) {
+    public Pedido asignarRepartidor(Long pedidoId, String repartidorId) {
         Pedido pedido = pedidoRepository.findById(pedidoId)
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
 
@@ -43,7 +47,7 @@ public class PedidoService {
         return pedidoRepository.save(pedido);
     }
 
-    public void rechazarPedido(String pedidoId, String repartidorId) {
+    public void rechazarPedido(Long pedidoId, String repartidorId) {
         Pedido pedido = pedidoRepository.findById(pedidoId)
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
 
@@ -54,5 +58,14 @@ public class PedidoService {
     // Cambiado a público para poder usarlo en el controller
     public PedidoDto convertirADto(Pedido pedido) {
         return PedidoDto.fromEntity(pedido);
+    }
+
+    public void notificarNuevoPedido(Pedido pedido) {
+        PedidoDto dto = convertirADto(pedido);
+        messagingTemplate.convertAndSendToUser(
+                pedido.getRepartidorId(),
+                "/pedidos",
+                dto
+        );
     }
 }
