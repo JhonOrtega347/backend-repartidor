@@ -31,23 +31,62 @@ public class PedidoSocketController {
 
     @MessageMapping("/pedido.aceptado")
     public void handlePedidoAceptado(@Payload AceptarPedidoRequest request) {
-        Pedido pedido = pedidoService.asignarRepartidor(
-                Long.parseLong(request.getPedidoId()), //AQUI
-                request.getRepartidorId()
-        );
+        try {
+            Pedido pedido = pedidoService.asignarRepartidor(
+                    Long.parseLong(request.getPedidoId()),
+                    request.getRepartidorId()
+            );
 
-        messagingTemplate.convertAndSendToUser(
-                pedido.getClienteId(),
-                "/queue/estado-pedido",
-                Map.of("estado", "ACEPTADO", "repartidorId", request.getRepartidorId())
-        );
+            messagingTemplate.convertAndSendToUser(
+                    pedido.getClienteId(),
+                    "/queue/estado-pedido",
+                    Map.of("estado", "ACEPTADO", "repartidorId", request.getRepartidorId())
+            );
+        } catch (RuntimeException e) {
+            // Notificar al repartidor que el pedido ya no está disponible
+            messagingTemplate.convertAndSendToUser(
+                    request.getRepartidorId(),
+                    "/queue/pedido-no-disponible",
+                    Map.of("pedidoId", request.getPedidoId(), "motivo", e.getMessage())
+            );
+        }
     }
+
 
     @MessageMapping("/pedido.rechazado")
     public void handlePedidoRechazado(@Payload RechazarPedidoRequest request) {
         pedidoService.rechazarPedido(Long.parseLong(request.getPedidoId()), request.getRepartidorId());
     }
+    @MessageMapping("/pedido.cancelado")
+    public void handlePedidoCancelado(@Payload CancelarPedidoRequest request) {
+        pedidoService.cancelarPedido(
+                Long.parseLong(request.getPedidoId()),
+                request.getMotivo()
+        );
 
+        // Notificar a repartidor
+        messagingTemplate.convertAndSendToUser(
+                request.getRepartidorId(),
+                "/pedido-cancelado",
+                Map.of(
+                        "pedidoId", request.getPedidoId(),
+                        "motivo", request.getMotivo()
+                )
+        );
+
+        // Notificar al cliente
+        Pedido pedido = pedidoService.findById(Long.parseLong(request.getPedidoId()))
+                .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
+
+        messagingTemplate.convertAndSendToUser(
+                pedido.getClienteId(),
+                "/pedido-cancelado",
+                Map.of(
+                        "pedidoId", request.getPedidoId(),
+                        "motivo", request.getMotivo()
+                )
+        );
+    }
     @MessageMapping("/pedido.nuevo")
     public void handleNuevoPedido(PedidoDto pedidoDto) {
         log.info("📥 Pedido recibido en handleNuevoPedido: {}", pedidoDto);
@@ -64,10 +103,7 @@ public class PedidoSocketController {
                     "/pedidos",
                     pedidoDto
             );
-            log.info("🔍 Repartidores activos:");
-            ubicacionActivaService.obtenerUbicaciones().forEach(u -> {
-                log.info("🧍 {} - {}", u.getUserId(), u.getRole());
-            });
+            pedidoService.registrarRepartidorNotificado(pedidoDto.getId(), repartidorId);
             log.info("✅ Pedido asignado automáticamente a: {}", repartidorId);
         } else {
             log.warn("⚠️ No hay repartidores disponibles para el pedido.");

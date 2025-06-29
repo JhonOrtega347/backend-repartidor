@@ -10,9 +10,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
+import com.example.deliverytracker.Pedido.PedidoDto;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -54,6 +56,21 @@ public class OrderController {
         }
 
         return ResponseEntity.ok(dto);
+    }
+
+    @PutMapping("/{id}/cancelar")
+    public ResponseEntity<?> cancelarPedido(
+            @PathVariable Long id,
+            @RequestParam String clienteId) {
+        try {
+            Pedido pedido = pedidoService.cancelarPedido(id, clienteId);
+            return ResponseEntity.ok(PedidoDto.fromEntity(pedido));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", e.getMessage(),
+                    "timestamp", LocalDateTime.now()
+            ));
+        }
     }
 
 

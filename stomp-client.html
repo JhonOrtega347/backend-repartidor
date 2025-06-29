@@ -2,28 +2,48 @@
 <html>
 <head>
     <meta charset="UTF-8" />
-    <title>Crear Pedido por REST</title>
+    <title>Crear y Cancelar Pedido por REST</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        #cancelBtn { background-color: #ff4444; color: white; }
+        #status { margin-top: 20px; padding: 10px; border-radius: 5px; }
+        .success { background-color: #dff0d8; color: #3c763d; }
+        .error { background-color: #f2dede; color: #a94442; }
+    </style>
 </head>
 <body>
-<h1>Enviar pedido desde HTML (vía REST)</h1>
+<h1>Gestión de Pedidos</h1>
 <button onclick="enviarPedido()">📤 Enviar Pedido</button>
+<button onclick="cancelarPedido()" id="cancelBtn" disabled>❌ Cancelar Pedido</button>
+<div id="status"></div>
 
 <script>
+    let pedidoId = null;
+    const clienteId = "la_cabra"; // ID fijo para este ejemplo
+
+    function showStatus(message, isError = false) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.textContent = message;
+        statusDiv.className = isError ? 'error' : 'success';
+    }
+
     function enviarPedido() {
         const pedido = {
-            clienteId: "clienteHTML",
+            clienteId: clienteId,
             local: "Pizzería Joel xD",
             latitudLocal: -12.042,
             longitudLocal: -77.029,
-            destination: "Calle HTML 455",
+            destination: "Calle leo 455",
             latitudDestino: -12.048,
             longitudDestino: -77.034,
             price: 45.5,
-            descripcion: "Pizza grande HTML"
-            // No necesitas estado ni fechaCreacion: eso lo pone el backend
+            descripcion: "Pizza grande a la Miguel"
         };
 
-        fetch("http://192.168.18.9:8080/api/pedidos", {
+        showStatus("Enviando pedido...");
+
+        fetch("http://192.168.1.7:8080/api/pedidos", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -32,21 +52,54 @@
         })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error("Error al crear el pedido");
+                    return response.json().then(err => { throw new Error(err.error || "Error al crear pedido"); });
                 }
                 return response.json();
             })
             .then(data => {
-                console.log("✅ Pedido creado exitosamente:", data);
-                alert("✅ Pedido enviado y notificado al repartidor");
+                pedidoId = data.id;
+                document.getElementById('cancelBtn').disabled = false;
+                showStatus(`✅ Pedido creado! ID: ${data.id}`);
+                console.log("Pedido creado:", data);
             })
             .catch(error => {
-                console.error("❌ Error:", error);
-                alert("❌ Error al enviar el pedido");
+                showStatus(`❌ Error: ${error.message}`, true);
+                console.error("Error:", error);
+            });
+    }
+
+    function cancelarPedido() {
+        if (!pedidoId) {
+            showStatus("No hay pedido para cancelar", true);
+            return;
+        }
+
+        showStatus("Cancelando pedido...");
+
+        fetch(`http://192.168.1.7:8080/api/pedidos/${pedidoId}/cancelar?clienteId=${encodeURIComponent(clienteId)}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            }
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error || "Error al cancelar pedido"); });
+                }
+                return response.json();
+            })
+            .then(data => {
+                showStatus(`✅ Pedido cancelado: ${data.id}`);
+                pedidoId = null;
+                document.getElementById('cancelBtn').disabled = true;
+                console.log("Pedido cancelado:", data);
+            })
+            .catch(error => {
+                showStatus(`❌ Error: ${error.message}`, true);
+                console.error("Error:", error);
             });
     }
 </script>
 </body>
 </html>
-
 

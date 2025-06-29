@@ -31,14 +31,6 @@ public class LocationWebSocketController {
 
     @MessageMapping("/update-location")
     public void handleLocationUpdate(LocationUpdate locationUpdate) {
-        logger.info("📍 Ubicación recibida de {}: {}", locationUpdate.getUserId(), locationUpdate);
-
-        if (locationUpdate.getRole() == null) {
-            logger.warn("⚠️ El campo 'role' es NULL para el usuario: {}", locationUpdate.getUserId());
-        } else {
-            logger.info("✅ Role recibido correctamente: {}", locationUpdate.getRole());
-        }
-
         ubicacionActivaService.actualizarUbicacion(locationUpdate);
 
         List<LocationUpdate> locationsList = ubicacionActivaService.obtenerUbicaciones().stream().toList();

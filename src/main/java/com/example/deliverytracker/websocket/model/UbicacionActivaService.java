@@ -16,12 +16,10 @@ public class UbicacionActivaService {
     private final ConcurrentHashMap<String, LocationUpdate> activeLocations = new ConcurrentHashMap<>();
 
     public void actualizarUbicacion(LocationUpdate loc) {
-        log.info("✅ Actualizando ubicación activa: {}", loc);
         activeLocations.put(loc.getUserId(), loc);
     }
 
     public Collection<LocationUpdate> obtenerUbicaciones() {
-        log.info("📦 Ubicaciones activas actuales: {}", activeLocations.values());
         return activeLocations.values();
     }
 }
