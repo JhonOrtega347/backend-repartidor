@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PedidoDto {
+    private Long id;
     private String clienteId;
     private String repartidorId;
 
@@ -31,6 +32,7 @@ public class PedidoDto {
     // Método de conversión
     public static PedidoDto fromEntity(Pedido pedido) {
         return new PedidoDto(
+                pedido.getId(),
                 pedido.getClienteId(),
                 pedido.getRepartidorId(),
                 pedido.getLocal(),

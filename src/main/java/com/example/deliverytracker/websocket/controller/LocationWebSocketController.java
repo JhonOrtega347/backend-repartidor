@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import com.example.deliverytracker.websocket.model.UbicacionActivaService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,28 +26,22 @@ public class LocationWebSocketController {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
-    private final ConcurrentHashMap<String, LocationUpdate> activeLocations = new ConcurrentHashMap<>();
+    @Autowired
+    private UbicacionActivaService ubicacionActivaService;
 
     @MessageMapping("/update-location")
     public void handleLocationUpdate(LocationUpdate locationUpdate) {
+        logger.info("📍 Ubicación recibida de {}: {}", locationUpdate.getUserId(), locationUpdate);
 
-        logger.info("INGRESANDO AL METODO  /update-location");
-        String id = locationUpdate.getUserId();
-        activeLocations.put(id, locationUpdate);
-        System.out.println("/update-location  -> " + id + "" + locationUpdate);
-        logger.info("locationUpdate.getUserId()  : {},   locationUpdate: {}  ", id, locationUpdate);
-
-        // Convertir el mapa de ubicaciones activas en una lista
-        List<LocationUpdate> locationsList = activeLocations.values().stream().collect(Collectors.toList());
-
-        ObjectMapper mapper = new ObjectMapper();
-        try {
-            System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(locationsList));
-        } catch (JsonProcessingException e) {
-            // TODO Auto-generated catch block
-            logger.error(e.getMessage());
+        if (locationUpdate.getRole() == null) {
+            logger.warn("⚠️ El campo 'role' es NULL para el usuario: {}", locationUpdate.getUserId());
+        } else {
+            logger.info("✅ Role recibido correctamente: {}", locationUpdate.getRole());
         }
-        // Enviar **todas** las ubicaciones a los clientes suscritos
+
+        ubicacionActivaService.actualizarUbicacion(locationUpdate);
+
+        List<LocationUpdate> locationsList = ubicacionActivaService.obtenerUbicaciones().stream().toList();
 
         messagingTemplate.convertAndSend("/topic/locations", locationsList);
     }

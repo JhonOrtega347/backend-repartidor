@@ -2,48 +2,51 @@
 <html>
 <head>
     <meta charset="UTF-8" />
-    <title>Enviar Pedido STOMP</title>
-    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <title>Crear Pedido por REST</title>
 </head>
 <body>
-<h1>Enviar pedido a user_abc123</h1>
+<h1>Enviar pedido desde HTML (vía REST)</h1>
 <button onclick="enviarPedido()">📤 Enviar Pedido</button>
 
 <script>
-    const socket = new SockJS("http://10.100.241.219:8080/ws-location?userId=admin");
-    const client = Stomp.over(socket);
-
-    client.connect({}, function (frame) {
-        console.log("✅ Conectado:", frame);
-
-        client.subscribe("/user/user_abc123/pedidos", function (message) {
-            console.log("📦 Pedido recibido en el HTML:", message.body);
-        });
-
-        window.enviarPedido = function () {
-            const pedido = {
-                clienteId: "clienteHTML",
-                repartidorId: "user_abc123",
-                local: "Pizzería HTML",
-                latitudLocal: -12.042,
-                longitudLocal: -77.029,
-                destination: "Calle HTML 456",
-                latitudDestino: -12.048,
-                longitudDestino: -77.034,
-                price: 45.5,
-                descripcion: "Pizza grande HTML",
-                estado: "PENDIENTE",
-                fechaCreacion: new Date().toISOString()
-            };
-
-            client.send("/app/pedido.nuevo", {}, JSON.stringify(pedido));
-            console.log("📤 Pedido enviado");
+    function enviarPedido() {
+        const pedido = {
+            clienteId: "clienteHTML",
+            local: "Pizzería Joel xD",
+            latitudLocal: -12.042,
+            longitudLocal: -77.029,
+            destination: "Calle HTML 455",
+            latitudDestino: -12.048,
+            longitudDestino: -77.034,
+            price: 45.5,
+            descripcion: "Pizza grande HTML"
+            // No necesitas estado ni fechaCreacion: eso lo pone el backend
         };
-    }, function (error) {
-        console.error("❌ Error STOMP:", error);
-    });
+
+        fetch("http://192.168.18.9:8080/api/pedidos", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(pedido)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Error al crear el pedido");
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("✅ Pedido creado exitosamente:", data);
+                alert("✅ Pedido enviado y notificado al repartidor");
+            })
+            .catch(error => {
+                console.error("❌ Error:", error);
+                alert("❌ Error al enviar el pedido");
+            });
+    }
 </script>
 </body>
 </html>
+
 

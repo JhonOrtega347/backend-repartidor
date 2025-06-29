@@ -1,5 +1,10 @@
 package com.example.deliverytracker.Pedido;
 
+import com.example.deliverytracker.websocket.model.LocationUpdate;
+import com.example.deliverytracker.websocket.model.Role;
+import com.example.deliverytracker.websocket.model.UbicacionActivaService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,32 +19,49 @@ import java.util.Optional;
 @RequestMapping("/api/pedidos")
 @CrossOrigin(origins = "*") // Permitir solicitudes desde cualquier origen
 public class OrderController {
+
+    private static final Logger log = LoggerFactory.getLogger(PedidoSocketController.class);
+
     @Autowired
     private PedidoService pedidoService;
 
+    @Autowired
+    private SimpMessagingTemplate messagingTemplate;
+
+    @Autowired
+    private UbicacionActivaService ubicacionActivaService;
+
     @PostMapping
-    public ResponseEntity<Pedido> crearPedido(@RequestBody Pedido pedido) {
-        // Asegura que los campos del local estén presentes
-        if (pedido.getLocal() == null || pedido.getLatitudLocal() == 0 || pedido.getLongitudLocal() == 0) {
-            // Puedes setear valores por defecto o lanzar excepción
-            pedido.setLocal("Restaurante Principal");
-            pedido.setLatitudLocal(-12.123); // Ejemplo
-            pedido.setLongitudLocal(-77.456); // Ejemplo
+    public ResponseEntity<PedidoDto> crearPedido(@RequestBody Pedido newpedido) {
+        Pedido pedido = pedidoService.crearPedido(newpedido);
+        PedidoDto dto = PedidoDto.fromEntity(pedido);
+
+        // Buscar repartidor y notificar como en handleNuevoPedido
+        Optional<LocationUpdate> repartidor = ubicacionActivaService.obtenerUbicaciones()
+                .stream().filter(u -> u.getRole() == Role.REPARTIDOR).findAny();
+
+        if (repartidor.isPresent()) {
+            String repartidorId = repartidor.get().getUserId();
+            dto.setRepartidorId(repartidorId);
+
+            messagingTemplate.convertAndSendToUser(
+                    repartidorId,
+                    "/pedidos",
+                    dto
+            );
+
+            log.info("📣 Notificado al repartidor {} vía REST + WebSocket", repartidorId);
         }
 
-        Pedido nuevoPedido = pedidoService.crearPedido(pedido);
-        return new ResponseEntity<>(nuevoPedido, HttpStatus.CREATED);
+        return ResponseEntity.ok(dto);
     }
 
-    @GetMapping("/pendientes")
-    public List<Pedido> getPedidosPendientes() {
-        return pedidoService.obtenerPedidosPendientes();
-    }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<PedidoDto> getPedido(@PathVariable Long id) {
         return pedidoService.findById(id)
-                .map(pedido -> ResponseEntity.ok(pedidoService.convertirADto(pedido)))//'convertirADto(com.example.deliverytracker.Pedido.Pedido)' has private access in 'com.example.deliverytracker.Pedido.PedidoService'
+                .map(pedido -> ResponseEntity.ok(pedidoService.convertirADto(pedido)))
                 .orElse(ResponseEntity.notFound().build());
     }
 }

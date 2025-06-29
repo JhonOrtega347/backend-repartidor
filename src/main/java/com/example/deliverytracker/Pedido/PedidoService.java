@@ -20,15 +20,16 @@ public class PedidoService {
     public Pedido crearPedido(Pedido pedido) {
         pedido.setEstado("PENDIENTE");
         pedido.setFechaCreacion(LocalDateTime.now());
-        Pedido nuevoPedido = pedidoRepository.save(pedido);
+        Pedido guardado = pedidoRepository.save(pedido);
+        System.out.println("🆔 Pedido guardado con ID: " + guardado.getId());
 
-        PedidoDto dto = convertirADto(nuevoPedido);
+        PedidoDto dto = PedidoDto.fromEntity(guardado);
+        messagingTemplate.convertAndSend("/app/pedido.nuevo", dto);
 
-        // 👇 Envia directamente al repartidor específico
-        messagingTemplate.convertAndSendToUser(dto.getRepartidorId(), "/pedidos", dto);
-
-        return nuevoPedido;
+        return guardado;
     }
+
+
 
     public Optional<Pedido> findById(Long id) {
         return pedidoRepository.findById(id);
@@ -58,14 +59,5 @@ public class PedidoService {
     // Cambiado a público para poder usarlo en el controller
     public PedidoDto convertirADto(Pedido pedido) {
         return PedidoDto.fromEntity(pedido);
-    }
-
-    public void notificarNuevoPedido(Pedido pedido) {
-        PedidoDto dto = convertirADto(pedido);
-        messagingTemplate.convertAndSendToUser(
-                pedido.getRepartidorId(),
-                "/pedidos",
-                dto
-        );
     }
 }
