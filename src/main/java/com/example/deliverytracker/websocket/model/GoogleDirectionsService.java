@@ -23,8 +23,6 @@ public class GoogleDirectionsService {
         String origin = origenLat + "," + origenLng;
         String destination = destinoLat + "," + destinoLng;
 
-        log.info("🌐 Consultando ruta desde {} hasta {}", origin, destination);
-
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/json")

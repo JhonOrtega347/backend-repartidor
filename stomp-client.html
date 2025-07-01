@@ -17,10 +17,12 @@
 <button onclick="enviarPedido()">📤 Enviar Pedido</button>
 <button onclick="cancelarPedido()" id="cancelBtn" disabled>❌ Cancelar Pedido</button>
 <div id="status"></div>
-
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
 <script>
     let pedidoId = null;
-    const clienteId = "la_cabra"; // ID fijo para este ejemplo
+    const clienteId = "la_cabra2";
+    let stompClient = null;
 
     function showStatus(message, isError = false) {
         const statusDiv = document.getElementById('status');
@@ -28,22 +30,31 @@
         statusDiv.className = isError ? 'error' : 'success';
     }
 
+    function conectarStomp(callback) {
+        const socket = new SockJS("http://192.168.18.9:8080/ws-location?userId=cliente_la_cabra2");
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, function (frame) {
+            console.log("🌐 Conectado STOMP:", frame);
+            if (callback) callback();
+        });
+    }
+
     function enviarPedido() {
         const pedido = {
             clienteId: clienteId,
             local: "Pizzería Joel xD",
-            latitudLocal: -12.042,
-            longitudLocal: -77.029,
+            latitudLocal: -12.047,
+            longitudLocal: -77.021,
             destination: "Calle leo 455",
-            latitudDestino: -12.048,
-            longitudDestino: -77.034,
-            price: 45.5,
+            latitudDestino: -12.043,
+            longitudDestino: -77.033,
+            price: 41.5,
             descripcion: "Pizza grande a la Miguel"
         };
 
         showStatus("Enviando pedido...");
 
-        fetch("http://192.168.1.7:8080/api/pedidos", {
+        fetch("http://192.168.18.9:8080/api/pedidos", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -61,6 +72,11 @@
                 document.getElementById('cancelBtn').disabled = false;
                 showStatus(`✅ Pedido creado! ID: ${data.id}`);
                 console.log("Pedido creado:", data);
+
+                conectarStomp(() => {
+                    console.log("📨 Enviando pedido por WebSocket:", data);
+                    stompClient.send("/app/pedido.nuevo", {}, JSON.stringify(data));
+                });
             })
             .catch(error => {
                 showStatus(`❌ Error: ${error.message}`, true);
@@ -76,7 +92,7 @@
 
         showStatus("Cancelando pedido...");
 
-        fetch(`http://192.168.1.7:8080/api/pedidos/${pedidoId}/cancelar?clienteId=${encodeURIComponent(clienteId)}`, {
+        fetch(`http://192.168.18.9:8080/api/pedidos/${pedidoId}/cancelar?clienteId=${encodeURIComponent(clienteId)}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json"

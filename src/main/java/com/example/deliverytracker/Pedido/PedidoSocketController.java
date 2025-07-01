@@ -9,6 +9,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -42,6 +43,13 @@ public class PedidoSocketController {
                     "/queue/estado-pedido",
                     Map.of("estado", "ACEPTADO", "repartidorId", request.getRepartidorId())
             );
+
+            // Notificar a otros repartidores que el pedido ya fue aceptado
+            pedidoService.notificarRepartidoresQuePedidoFueAceptado(
+                    pedido.getId(),
+                    request.getRepartidorId()
+            );
+
         } catch (RuntimeException e) {
             // Notificar al repartidor que el pedido ya no está disponible
             messagingTemplate.convertAndSendToUser(
@@ -90,23 +98,32 @@ public class PedidoSocketController {
     @MessageMapping("/pedido.nuevo")
     public void handleNuevoPedido(PedidoDto pedidoDto) {
         log.info("📥 Pedido recibido en handleNuevoPedido: {}", pedidoDto);
-        Optional<LocationUpdate> repartidorDisponible = ubicacionActivaService.obtenerUbicaciones().stream()
-                .filter(loc -> loc.getRole() == Role.REPARTIDOR)
-                .findAny(); // o aplica lógica de cercanía
 
-        if (repartidorDisponible.isPresent()) {
-            String repartidorId = repartidorDisponible.get().getUserId();
-            pedidoDto.setRepartidorId(repartidorId);
+        List<LocationUpdate> repartidoresDisponibles = ubicacionActivaService.obtenerUbicaciones().stream()
+                .filter(loc -> loc.getRole() == Role.REPARTIDOR)
+                .toList();
+
+        if (repartidoresDisponibles.isEmpty()) {
+            log.warn("⚠️ No hay repartidores disponibles para el pedido.");
+            return;
+        }
+
+        for (LocationUpdate repartidor : repartidoresDisponibles) {
+            String repartidorId = repartidor.getUserId();
+            log.info("📦 Enviando pedido {} a repartidor {}", pedidoDto.getId(), repartidorId);
 
             messagingTemplate.convertAndSendToUser(
                     repartidorId,
                     "/pedidos",
                     pedidoDto
             );
+
+            // ✅ Registra a todos los notificados
             pedidoService.registrarRepartidorNotificado(pedidoDto.getId(), repartidorId);
-            log.info("✅ Pedido asignado automáticamente a: {}", repartidorId);
-        } else {
-            log.warn("⚠️ No hay repartidores disponibles para el pedido.");
         }
+
+        log.info("📣 Pedido {} notificado a {} repartidores.", pedidoDto.getId(), repartidoresDisponibles.size());
     }
+
+
 }

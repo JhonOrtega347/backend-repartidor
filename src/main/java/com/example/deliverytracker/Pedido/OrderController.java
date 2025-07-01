@@ -38,22 +38,6 @@ public class OrderController {
         Pedido pedido = pedidoService.crearPedido(newpedido);
         PedidoDto dto = PedidoDto.fromEntity(pedido);
 
-        // Buscar repartidor y notificar como en handleNuevoPedido
-        Optional<LocationUpdate> repartidor = ubicacionActivaService.obtenerUbicaciones()
-                .stream().filter(u -> u.getRole() == Role.REPARTIDOR).findAny();
-
-        if (repartidor.isPresent()) {
-            String repartidorId = repartidor.get().getUserId();
-            dto.setRepartidorId(repartidorId);
-
-            messagingTemplate.convertAndSendToUser(
-                    repartidorId,
-                    "/pedidos",
-                    dto
-            );
-
-            log.info("📣 Notificado al repartidor {} vía REST + WebSocket", repartidorId);
-        }
 
         return ResponseEntity.ok(dto);
     }

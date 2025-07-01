@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,26 +37,27 @@ public class PedidoService {
         pedido.setEstado("PENDIENTE");
         pedido.setFechaCreacion(LocalDateTime.now());
         Pedido guardado = pedidoRepository.save(pedido);
-        System.out.println("🆔 Pedido guardado con ID: " + guardado.getId());
+        log.info("🆔 Pedido guardado con ID: {}", guardado.getId());
 
         PedidoDto dto = PedidoDto.fromEntity(guardado);
 
-        // ✅ Aquí notificamos manualmente a un repartidor disponible
-        Optional<LocationUpdate> repartidorDisponible = ubicacionActivaService.obtenerUbicaciones().stream()
+        List<LocationUpdate> disponibles = ubicacionActivaService.obtenerUbicaciones().stream()
                 .filter(loc -> loc.getRole() == Role.REPARTIDOR)
-                .findAny();
+                .toList();
 
-        if (repartidorDisponible.isPresent()) {
-            String repartidorId = repartidorDisponible.get().getUserId();
-            dto.setRepartidorId(repartidorId);
-
-            messagingTemplate.convertAndSendToUser(repartidorId, "/pedidos", dto);
-            registrarRepartidorNotificado(dto.getId(), repartidorId);
-            log.info("📣 Pedido {} asignado automáticamente a {}", dto.getId(), repartidorId);
-        } else {
-            log.warn("⚠️ No hay repartidores disponibles para el pedido {}", dto.getId());
+        if (disponibles.isEmpty()) {
+            log.warn("⚠️ No hay repartidores disponibles para el pedido {}", guardado.getId());
+            return guardado;
         }
 
+        for (LocationUpdate repartidor : disponibles) {
+            String repartidorId = repartidor.getUserId();
+            messagingTemplate.convertAndSendToUser(repartidorId, "/pedidos", dto);
+            registrarRepartidorNotificado(dto.getId(), repartidorId);
+            log.info("📦 Enviado pedido {} a repartidor {}", dto.getId(), repartidorId);
+        }
+
+        log.info("📣 Pedido {} notificado a {} repartidores.", dto.getId(), disponibles.size());
         return guardado;
     }
 
@@ -73,9 +75,15 @@ public class PedidoService {
         return pedidoRepository.findByEstado("PENDIENTE");
     }
 
+    @Transactional
     public Pedido asignarRepartidor(Long pedidoId, String repartidorId) {
         Pedido pedido = pedidoRepository.findById(pedidoId)
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
+
+        if (!pedido.getEstado().equals("PENDIENTE")) {
+            log.warn("🚫 Pedido {} ya no está disponible. Estado actual: {}", pedidoId, pedido.getEstado());
+            throw new RuntimeException("Pedido ya fue aceptado o no está disponible");
+        }
 
         pedido.setRepartidorId(repartidorId);
         pedido.setEstado("ACEPTADO");
@@ -123,6 +131,28 @@ public class PedidoService {
 
         return cancelado;
     }
+
+    public void notificarRepartidoresQuePedidoFueAceptado(Long pedidoId, String repartidorQueAcepto) {
+        Set<String> repartidores = repartidoresNotificados.get(pedidoId);
+        if (repartidores != null) {
+            for (String repartidorId : repartidores) {
+                if (!repartidorId.equals(repartidorQueAcepto)) {
+                    messagingTemplate.convertAndSendToUser(
+                            repartidorId,
+                            "/pedido-cancelado",
+                            Map.of(
+                                    "pedidoId", pedidoId,
+                                    "motivo", "Otro repartidor ya aceptó el pedido"
+                            )
+                    );
+                }
+            }
+            log.info("📢 Notificados {} repartidores (excepto {}) que el pedido {} fue aceptado", repartidores.size() - 1, repartidorQueAcepto, pedidoId);
+        } else {
+            log.warn("⚠️ No hay repartidores registrados para notificar en el pedido {}", pedidoId);
+        }
+    }
+
 
 
     public PedidoDto convertirADto(Pedido pedido) {
