@@ -3,6 +3,8 @@ package com.example.deliverytracker.Pedido;
 import com.example.deliverytracker.websocket.model.LocationUpdate;
 import com.example.deliverytracker.websocket.model.Role;
 import com.example.deliverytracker.websocket.model.UbicacionActivaService;
+import com.example.deliverytracker.maps.GoogleMapsService;
+import com.example.deliverytracker.maps.RouteInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +32,9 @@ public class PedidoService {
     @Autowired
     private UbicacionActivaService ubicacionActivaService;
 
+    @Autowired
+    private GoogleMapsService googleMapsService;
+
     // Almacena qué repartidores fueron notificados por pedido
     private final Map<Long, Set<String>> repartidoresNotificados = new ConcurrentHashMap<>();
 
@@ -39,7 +44,27 @@ public class PedidoService {
         Pedido guardado = pedidoRepository.save(pedido);
         log.info("🆔 Pedido guardado con ID: {}", guardado.getId());
 
+        // Calcular distancia y tiempo real usando Google Maps
+        RouteInfo routeInfo = null;
+        try {
+            routeInfo = googleMapsService.calculateRouteInfo(
+                pedido.getLatitudLocal(), pedido.getLongitudLocal(),
+                pedido.getLatitudDestino(), pedido.getLongitudDestino()
+            );
+            log.info("🗺️ Ruta calculada para pedido {}: {} km, {} min", 
+                guardado.getId(), routeInfo.getDistanceKm(), routeInfo.getEstimatedMinutes());
+        } catch (Exception e) {
+            log.warn("⚠️ Error calculando ruta para pedido {}: {}", guardado.getId(), e.getMessage());
+            // Continuar sin datos de ruta si hay error
+        }
+
         PedidoDto dto = PedidoDto.fromEntity(guardado);
+        
+        // Agregar datos de ruta al DTO si se calcularon correctamente
+        if (routeInfo != null) {
+            dto.setDistanciaReal(routeInfo.getDistanceKm());
+            dto.setTiempoEstimado(routeInfo.getEstimatedMinutes());
+        }
 
         List<LocationUpdate> disponibles = ubicacionActivaService.obtenerUbicaciones().stream()
                 .filter(loc -> loc.getRole() == Role.REPARTIDOR)
@@ -133,30 +158,66 @@ public class PedidoService {
     }
 
     public void notificarRepartidoresQuePedidoFueAceptado(Long pedidoId, String repartidorQueAcepto) {
+        log.info("📢 Iniciando notificación a otros repartidores sobre pedido {} aceptado por {}", 
+                pedidoId, repartidorQueAcepto);
+        
         Set<String> repartidores = repartidoresNotificados.get(pedidoId);
         if (repartidores != null) {
+            log.info("📋 Repartidores a notificar: {}", repartidores);
+            
             for (String repartidorId : repartidores) {
                 if (!repartidorId.equals(repartidorQueAcepto)) {
-                    messagingTemplate.convertAndSendToUser(
-                            repartidorId,
-                            "/pedido-cancelado",
-                            Map.of(
-                                    "pedidoId", pedidoId,
-                                    "motivo", "Otro repartidor ya aceptó el pedido"
-                            )
-                    );
+                    log.info("📤 Enviando notificación de cancelación a repartidor {} para pedido {}", 
+                            repartidorId, pedidoId);
+                    
+                    try {
+                        messagingTemplate.convertAndSendToUser(
+                                repartidorId,
+                                "/pedido-cancelado",
+                                Map.of(
+                                        "pedidoId", pedidoId,
+                                        "motivo", "Otro repartidor ya aceptó el pedido"
+                                )
+                        );
+                        log.info("✅ Notificación enviada exitosamente a repartidor {}", repartidorId);
+                    } catch (Exception e) {
+                        log.error("❌ Error enviando notificación a repartidor {}: {}", repartidorId, e.getMessage());
+                        log.error("❌ Stack trace:", e);
+                    }
+                } else {
+                    log.info("⏭️ Saltando notificación al repartidor que aceptó: {}", repartidorId);
                 }
             }
-            log.info("📢 Notificados {} repartidores (excepto {}) que el pedido {} fue aceptado", repartidores.size() - 1, repartidorQueAcepto, pedidoId);
+            log.info("📢 Notificados {} repartidores (excepto {}) que el pedido {} fue aceptado", 
+                    repartidores.size() - 1, repartidorQueAcepto, pedidoId);
         } else {
             log.warn("⚠️ No hay repartidores registrados para notificar en el pedido {}", pedidoId);
         }
+        
+        log.info("🏁 Finalizada notificación a otros repartidores sobre pedido {}", pedidoId);
     }
 
 
 
     public PedidoDto convertirADto(Pedido pedido) {
-        return PedidoDto.fromEntity(pedido);
+        PedidoDto dto = PedidoDto.fromEntity(pedido);
+        
+        // Calcular distancia y tiempo real usando Google Maps
+        try {
+            RouteInfo routeInfo = googleMapsService.calculateRouteInfo(
+                pedido.getLatitudLocal(), pedido.getLongitudLocal(),
+                pedido.getLatitudDestino(), pedido.getLongitudDestino()
+            );
+            dto.setDistanciaReal(routeInfo.getDistanceKm());
+            dto.setTiempoEstimado(routeInfo.getEstimatedMinutes());
+            log.info("🗺️ Ruta calculada para conversión: {} km, {} min", 
+                routeInfo.getDistanceKm(), routeInfo.getEstimatedMinutes());
+        } catch (Exception e) {
+            log.warn("⚠️ Error calculando ruta para conversión: {}", e.getMessage());
+            // Mantener valores null si hay error
+        }
+        
+        return dto;
     }
 }
 

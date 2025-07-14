@@ -28,6 +28,10 @@ public class PedidoDto {
     private String estado;
     private LocalDateTime fechaCreacion;
 
+    // Nuevos campos para distancia y tiempo real
+    private Double distanciaReal;
+    private Integer tiempoEstimado;
+
     // Método de conversión
     public static PedidoDto fromEntity(Pedido pedido) {
         return new PedidoDto(
@@ -43,7 +47,9 @@ public class PedidoDto {
                 pedido.getPrice(),
                 pedido.getDescripcion(),
                 pedido.getEstado(),
-                pedido.getFechaCreacion()
+                pedido.getFechaCreacion(),
+                null, // distanciaReal se calculará después
+                null  // tiempoEstimado se calculará después
         );
     }
 }
